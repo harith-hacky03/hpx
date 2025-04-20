@@ -35,6 +35,7 @@ int main(int argc, char* argv[])
 
     hpx::mutex mtx;
     hpx::experimental::run_on_all(
+        hpx::execution::par,    // use parallel execution policy
         num_threads,    // use num_threads concurrent threads to execute the lambda
         [&] {
             std::lock_guard l(mtx);
