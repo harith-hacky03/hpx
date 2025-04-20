@@ -53,7 +53,7 @@ namespace hpx::experimental {
         hpx::threads::thread_schedule_hint hint;
         hint.sharing_mode(
             hpx::threads::thread_sharing_hint::do_not_share_function);
-        
+
         auto exec = hpx::execution::experimental::with_processing_units_count(
             hpx::execution::parallel_executor(
                 hpx::threads::thread_priority::bound,
@@ -70,14 +70,14 @@ namespace hpx::experimental {
         if constexpr (hpx::is_async_execution_policy_v<ExPolicy>)
         {
             hpx::parallel::execution::bulk_async_execute(
-                exec, [&](auto i) { f(r.iteration_value(i), ts...); }, num_tasks,
-                HPX_FORWARD(Ts, ts)...);
+                exec, [&](auto i) { f(r.iteration_value(i), ts...); },
+                num_tasks, HPX_FORWARD(Ts, ts)...);
         }
         else
         {
             hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
-                exec, [&](auto i) { f(r.iteration_value(i), ts...); }, num_tasks,
-                HPX_FORWARD(Ts, ts)...));
+                exec, [&](auto i) { f(r.iteration_value(i), ts...); },
+                num_tasks, HPX_FORWARD(Ts, ts)...));
         }
     }
 
@@ -123,7 +123,7 @@ namespace hpx::experimental {
         hpx::threads::thread_schedule_hint hint;
         hint.sharing_mode(
             hpx::threads::thread_sharing_hint::do_not_share_function);
-        
+
         auto exec = hpx::execution::experimental::with_processing_units_count(
             hpx::execution::parallel_executor(
                 hpx::threads::thread_priority::bound,
@@ -194,7 +194,7 @@ namespace hpx::experimental {
         HPX_CONCEPT_REQUIRES_(std::is_invocable_v<F&&, Ts&&...>)>
     void run_on_all(F&& f, Ts&&... ts)
     {
-        run_on_all(hpx::execution::seq, HPX_FORWARD(F, f),
-            HPX_FORWARD(Ts, ts)...);
+        run_on_all(
+            hpx::execution::seq, HPX_FORWARD(F, f), HPX_FORWARD(Ts, ts)...);
     }
 }    // namespace hpx::experimental

@@ -20,14 +20,16 @@ int main()
     // Test basic functionality with reduction
     {
         std::uint32_t n = 0;
-        run_on_all(reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
+        run_on_all(
+            reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
         HPX_TEST_EQ(n, hpx::get_num_worker_threads());
     }
 
     // Test with specific number of tasks
     {
         std::uint32_t n = 0;
-        run_on_all(2, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
+        run_on_all(
+            2, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
         HPX_TEST_EQ(n, static_cast<std::uint32_t>(2));
     }
 
@@ -67,8 +69,7 @@ int main()
     {
         std::uint32_t n = 0;
         std::uint32_t m = 0;
-        run_on_all(
-            reduction_plus(n), reduction_plus(m),
+        run_on_all(reduction_plus(n), reduction_plus(m),
             [](std::uint32_t& local_n, std::uint32_t& local_m) {
                 ++local_n;
                 local_m += 2;
@@ -80,10 +81,9 @@ int main()
     // Test with vector reduction
     {
         std::vector<std::uint32_t> v(hpx::get_num_worker_threads(), 0);
-        run_on_all(reduction_plus(v),
-            [](std::vector<std::uint32_t>& local_v) {
-                local_v[hpx::get_worker_thread_num()] = 1;
-            });
+        run_on_all(reduction_plus(v), [](std::vector<std::uint32_t>& local_v) {
+            local_v[hpx::get_worker_thread_num()] = 1;
+        });
         for (std::size_t i = 0; i < v.size(); ++i)
         {
             HPX_TEST_EQ(v[i], 1);
@@ -100,11 +100,13 @@ int main()
     // Test with different number of tasks
     {
         std::uint32_t n = 0;
-        run_on_all(1, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
+        run_on_all(
+            1, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
         HPX_TEST_EQ(n, static_cast<std::uint32_t>(1));
 
         n = 0;
-        run_on_all(4, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
+        run_on_all(
+            4, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
         HPX_TEST_EQ(n, static_cast<std::uint32_t>(4));
     }
 
