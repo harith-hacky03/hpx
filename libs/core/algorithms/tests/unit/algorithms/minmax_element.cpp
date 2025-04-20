@@ -139,6 +139,7 @@ void minmax_element_test()
 {
     test_minmax_element<std::random_access_iterator_tag>();
     test_minmax_element<std::forward_iterator_tag>();
+    test_minmax_element_semantics<std::random_access_iterator_tag>();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -551,6 +552,40 @@ void minmax_element_bad_alloc_test()
 {
     test_minmax_element_bad_alloc<std::random_access_iterator_tag>();
     test_minmax_element_bad_alloc<std::forward_iterator_tag>();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+template <typename IteratorTag>
+void test_minmax_element_semantics()
+{
+    typedef std::vector<std::size_t>::iterator base_iterator;
+    typedef test::test_iterator<base_iterator, IteratorTag> iterator;
+
+    // Test with repeated minimum and maximum values
+    std::vector<std::size_t> c = {1, 1, 1, 2, 3, 4, 4, 4};
+    iterator end(std::end(c));
+    base_iterator ref_end(std::end(c));
+
+    // Test with default comparison
+    auto r = hpx::minmax_element(iterator(std::begin(c)), iterator(end));
+    HPX_TEST(r.min != end && r.max != end);
+    HPX_TEST_EQ(*r.min, 1);
+    HPX_TEST_EQ(*r.max, 4);
+    HPX_TEST_EQ(std::distance(iterator(std::begin(c)), r.min),
+        0);    // First occurrence of min
+    HPX_TEST_EQ(std::distance(iterator(std::begin(c)), r.max),
+        5);    // First occurrence of max
+
+    // Test with custom comparison
+    r = hpx::minmax_element(
+        iterator(std::begin(c)), iterator(end), std::less<std::size_t>());
+    HPX_TEST(r.min != end && r.max != end);
+    HPX_TEST_EQ(*r.min, 1);
+    HPX_TEST_EQ(*r.max, 4);
+    HPX_TEST_EQ(std::distance(iterator(std::begin(c)), r.min),
+        0);    // First occurrence of min
+    HPX_TEST_EQ(std::distance(iterator(std::begin(c)), r.max),
+        5);    // First occurrence of max
 }
 
 ///////////////////////////////////////////////////////////////////////////////
