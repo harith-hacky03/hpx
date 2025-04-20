@@ -23,7 +23,7 @@
 #include <hpx/executors/parallel_executor.hpp>
 #include <hpx/functional/experimental/scope_exit.hpp>
 #include <hpx/parallel/algorithms/for_loop_reduction.hpp>
-#include <hpx/parallel/executors/execution.hpp>
+#include <hpx/parallel/execution.hpp>
 
 #include <cstddef>
 #include <type_traits>
