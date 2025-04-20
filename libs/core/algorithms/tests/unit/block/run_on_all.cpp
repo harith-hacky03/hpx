@@ -10,6 +10,7 @@
 #include <hpx/modules/testing.hpp>
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
