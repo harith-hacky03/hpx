@@ -114,7 +114,8 @@ namespace hpx::experimental {
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename F, typename... Ts>
-    decltype(auto) run_on_all(ExPolicy&& policy, std::size_t num_tasks, F&& f, Ts&&... ts)
+    decltype(auto) run_on_all(
+        ExPolicy&& policy, std::size_t num_tasks, F&& f, Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
@@ -162,8 +163,8 @@ namespace hpx::experimental {
 
         std::size_t cores =
             hpx::parallel::execution::detail::get_os_thread_count();
-        return run_on_all(HPX_FORWARD(ExPolicy, policy), cores, HPX_FORWARD(F, f),
-            HPX_FORWARD(Ts, ts)...);
+        return run_on_all(HPX_FORWARD(ExPolicy, policy), cores,
+            HPX_FORWARD(F, f), HPX_FORWARD(Ts, ts)...);
     }
 
     // Overloads without execution policy (default to sequential execution)
