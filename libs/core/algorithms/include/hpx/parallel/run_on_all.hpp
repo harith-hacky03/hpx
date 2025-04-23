@@ -43,7 +43,7 @@ namespace hpx::experimental {
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename T, typename Op, typename F,
         typename... Ts>
-    void run_on_all(ExPolicy&& policy, std::size_t num_tasks,
+    decltype(auto) run_on_all(ExPolicy&& policy, std::size_t num_tasks,
         hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
@@ -69,13 +69,13 @@ namespace hpx::experimental {
         // Execute based on policy type
         if constexpr (hpx::is_async_execution_policy_v<ExPolicy>)
         {
-            hpx::parallel::execution::bulk_async_execute(
+            return hpx::parallel::execution::bulk_async_execute(
                 exec, [&](auto i) { f(r.iteration_value(i), ts...); },
                 num_tasks, HPX_FORWARD(Ts, ts)...);
         }
         else
         {
-            hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
+            return hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
                 exec, [&](auto i) { f(r.iteration_value(i), ts...); },
                 num_tasks, HPX_FORWARD(Ts, ts)...));
         }
@@ -93,7 +93,7 @@ namespace hpx::experimental {
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename T, typename Op, typename F,
         typename... Ts>
-    void run_on_all(ExPolicy&& policy,
+    decltype(auto) run_on_all(ExPolicy&& policy,
         hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
@@ -101,7 +101,7 @@ namespace hpx::experimental {
 
         std::size_t cores =
             hpx::parallel::execution::detail::get_os_thread_count();
-        run_on_all(HPX_FORWARD(ExPolicy, policy), cores, HPX_MOVE(r),
+        return run_on_all(HPX_FORWARD(ExPolicy, policy), cores, HPX_MOVE(r),
             HPX_FORWARD(F, f), HPX_FORWARD(Ts, ts)...);
     }
 
@@ -114,7 +114,7 @@ namespace hpx::experimental {
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename F, typename... Ts>
-    void run_on_all(ExPolicy&& policy, std::size_t num_tasks, F&& f, Ts&&... ts)
+    decltype(auto) run_on_all(ExPolicy&& policy, std::size_t num_tasks, F&& f, Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
@@ -134,13 +134,13 @@ namespace hpx::experimental {
         // Execute based on policy type
         if constexpr (hpx::is_async_execution_policy_v<ExPolicy>)
         {
-            hpx::parallel::execution::bulk_async_execute(
+            return hpx::parallel::execution::bulk_async_execute(
                 exec, [&](auto) { f(ts...); }, num_tasks,
                 HPX_FORWARD(Ts, ts)...);
         }
         else
         {
-            hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
+            return hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
                 exec, [&](auto) { f(ts...); }, num_tasks,
                 HPX_FORWARD(Ts, ts)...));
         }
@@ -155,46 +155,46 @@ namespace hpx::experimental {
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename F, typename... Ts,
         HPX_CONCEPT_REQUIRES_(std::is_invocable_v<F&&, Ts&&...>)>
-    void run_on_all(ExPolicy&& policy, F&& f, Ts&&... ts)
+    decltype(auto) run_on_all(ExPolicy&& policy, F&& f, Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
 
         std::size_t cores =
             hpx::parallel::execution::detail::get_os_thread_count();
-        run_on_all(HPX_FORWARD(ExPolicy, policy), cores, HPX_FORWARD(F, f),
+        return run_on_all(HPX_FORWARD(ExPolicy, policy), cores, HPX_FORWARD(F, f),
             HPX_FORWARD(Ts, ts)...);
     }
 
     // Overloads without execution policy (default to sequential execution)
     template <typename T, typename Op, typename F, typename... Ts>
-    void run_on_all(std::size_t num_tasks,
+    decltype(auto) run_on_all(std::size_t num_tasks,
         hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
     {
-        run_on_all(hpx::execution::seq, num_tasks, HPX_MOVE(r),
+        return run_on_all(hpx::execution::seq, num_tasks, HPX_MOVE(r),
             HPX_FORWARD(F, f), HPX_FORWARD(Ts, ts)...);
     }
 
     template <typename T, typename Op, typename F, typename... Ts>
-    void run_on_all(
+    decltype(auto) run_on_all(
         hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
     {
-        run_on_all(hpx::execution::seq, HPX_MOVE(r), HPX_FORWARD(F, f),
+        return run_on_all(hpx::execution::seq, HPX_MOVE(r), HPX_FORWARD(F, f),
             HPX_FORWARD(Ts, ts)...);
     }
 
     template <typename F, typename... Ts>
-    void run_on_all(std::size_t num_tasks, F&& f, Ts&&... ts)
+    decltype(auto) run_on_all(std::size_t num_tasks, F&& f, Ts&&... ts)
     {
-        run_on_all(hpx::execution::seq, num_tasks, HPX_FORWARD(F, f),
+        return run_on_all(hpx::execution::seq, num_tasks, HPX_FORWARD(F, f),
             HPX_FORWARD(Ts, ts)...);
     }
 
     template <typename F, typename... Ts,
         HPX_CONCEPT_REQUIRES_(std::is_invocable_v<F&&, Ts&&...>)>
-    void run_on_all(F&& f, Ts&&... ts)
+    decltype(auto) run_on_all(F&& f, Ts&&... ts)
     {
-        run_on_all(
+        return run_on_all(
             hpx::execution::seq, HPX_FORWARD(F, f), HPX_FORWARD(Ts, ts)...);
     }
 }    // namespace hpx::experimental
