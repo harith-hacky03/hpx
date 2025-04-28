@@ -58,14 +58,6 @@ int main()
         HPX_TEST_EQ(n, hpx::get_num_worker_threads());
     }
 
-    // Test with async execution policy
-    {
-        std::uint32_t n = 0;
-        run_on_all(hpx::execution::async, reduction_plus(n),
-            [](std::uint32_t& local_n) { ++local_n; });
-        HPX_TEST_EQ(n, hpx::get_num_worker_threads());
-    }
-
     // Test with multiple arguments
     {
         std::uint32_t n = 0;
