@@ -29,8 +29,8 @@ int main()
     // Test with specific number of tasks
     {
         std::uint32_t n = 0;
-        run_on_all(hpx::execution::par,
-            2, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
+        run_on_all(hpx::execution::par, 2, reduction_plus(n),
+            [](std::uint32_t& local_n) { ++local_n; });
         HPX_TEST_EQ(n, static_cast<std::uint32_t>(2));
     }
 
@@ -93,13 +93,13 @@ int main()
     // Test with different number of tasks
     {
         std::uint32_t n = 0;
-        run_on_all(hpx::execution::par,
-            1, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
+        run_on_all(hpx::execution::par, 1, reduction_plus(n),
+            [](std::uint32_t& local_n) { ++local_n; });
         HPX_TEST_EQ(n, static_cast<std::uint32_t>(1));
 
         n = 0;
-        run_on_all(hpx::execution::par,
-            4, reduction_plus(n), [](std::uint32_t& local_n) { ++local_n; });
+        run_on_all(hpx::execution::par, 4, reduction_plus(n),
+            [](std::uint32_t& local_n) { ++local_n; });
         HPX_TEST_EQ(n, static_cast<std::uint32_t>(4));
     }
 
