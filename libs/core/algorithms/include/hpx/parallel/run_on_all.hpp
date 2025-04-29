@@ -41,45 +41,13 @@ namespace hpx::experimental {
     /// \param r The reduction helper
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
-    template <typename ExPolicy, typename T, typename Op, typename F,
-        typename... Ts>
-    decltype(auto) run_on_all(ExPolicy&& policy, std::size_t num_tasks,
-        hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
-    {
-        static_assert(hpx::is_execution_policy_v<ExPolicy>,
-            "hpx::is_execution_policy_v<ExPolicy>");
-
-        // Configure executor with proper scheduling hints
-        hpx::threads::thread_schedule_hint hint;
-        hint.sharing_mode(
-            hpx::threads::thread_sharing_hint::do_not_share_function);
-
-        auto exec = hpx::execution::experimental::with_processing_units_count(
-            hpx::execution::parallel_executor(
-                hpx::threads::thread_priority::bound,
-                hpx::threads::thread_stacksize::default_, hint),
-            num_tasks);
-        exec.set_hierarchical_threshold(0);
-
-        // Initialize reduction and ensure proper cleanup
-        r.init_iteration(0, 0);
-        auto on_exit =
-            hpx::experimental::scope_exit([&] { r.exit_iteration(0); });
-
-        // Execute based on policy type
-        if constexpr (hpx::is_async_execution_policy_v<ExPolicy>)
-        {
-            return hpx::parallel::execution::bulk_async_execute(
-                exec, [&](auto i) { f(r.iteration_value(i), ts...); },
-                num_tasks, HPX_FORWARD(Ts, ts)...);
-        }
-        else
-        {
-            return hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
-                exec, [&](auto i) { f(r.iteration_value(i), ts...); },
-                num_tasks, HPX_FORWARD(Ts, ts)...));
-        }
-    }
+    // [REMOVED] Overload taking both execution policy and num_tasks for reduction. Use execution policy with embedded processing units count instead.
+    // template <typename ExPolicy, typename T, typename Op, typename F, typename... Ts>
+    // decltype(auto) run_on_all(ExPolicy&& policy, std::size_t num_tasks,
+    //     hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
+    // {
+    //     ...
+    // }
 
     /// \brief Run a function on all available worker threads with reduction support
     /// \tparam ExPolicy The execution policy type
@@ -91,18 +59,37 @@ namespace hpx::experimental {
     /// \param r The reduction helper
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
-    template <typename ExPolicy, typename T, typename Op, typename F,
-        typename... Ts>
+    // TODO: In the future, support multiple reduction arguments (see for_loop API).
+    template <typename ExPolicy, typename T, typename Op, typename F, typename... Ts>
     decltype(auto) run_on_all(ExPolicy&& policy,
         hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
 
-        std::size_t cores =
+        [[maybe_unused]] std::size_t cores =
             hpx::parallel::execution::detail::get_os_thread_count();
-        return run_on_all(HPX_FORWARD(ExPolicy, policy), cores, HPX_MOVE(r),
-            HPX_FORWARD(F, f), HPX_FORWARD(Ts, ts)...);
+        // Now use the execution policy with embedded processing units count
+        auto exec = hpx::execution::experimental::with_processing_units_count(
+            HPX_FORWARD(ExPolicy, policy), cores);
+        r.init_iteration(0, 0);
+        // For async execution, cleanup must happen after all tasks complete.
+        if constexpr (hpx::is_async_execution_policy_v<ExPolicy>)
+        {
+            auto fut = hpx::parallel::execution::bulk_async_execute(
+                exec, [&](auto i) { f(r.iteration_value(i), ts...); }, cores, HPX_FORWARD(Ts, ts)...);
+            return fut.then([&r](auto&& fut_inner) {
+                r.exit_iteration(0);
+                return HPX_MOVE(fut_inner.get());
+            });
+        }
+        else
+        {
+            auto result = hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
+                exec, [&](auto i) { f(r.iteration_value(i), ts...); }, cores, HPX_FORWARD(Ts, ts)...));
+            r.exit_iteration(0);
+            return result;
+        }
     }
 
     /// \brief Run a function on all available worker threads
