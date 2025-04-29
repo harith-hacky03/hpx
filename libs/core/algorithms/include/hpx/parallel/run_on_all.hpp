@@ -60,7 +60,8 @@ namespace hpx::experimental {
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
     // TODO: In the future, support multiple reduction arguments (see for_loop API).
-    template <typename ExPolicy, typename T, typename Op, typename F, typename... Ts>
+    template <typename ExPolicy, typename T, typename Op, typename F,
+        typename... Ts>
     decltype(auto) run_on_all(ExPolicy&& policy,
         hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
     {
@@ -77,7 +78,8 @@ namespace hpx::experimental {
         if constexpr (hpx::is_async_execution_policy_v<ExPolicy>)
         {
             auto fut = hpx::parallel::execution::bulk_async_execute(
-                exec, [&](auto i) { f(r.iteration_value(i), ts...); }, cores, HPX_FORWARD(Ts, ts)...);
+                exec, [&](auto i) { f(r.iteration_value(i), ts...); }, cores,
+                HPX_FORWARD(Ts, ts)...);
             return fut.then([&r](auto&& fut_inner) {
                 r.exit_iteration(0);
                 return HPX_MOVE(fut_inner.get());
@@ -85,8 +87,10 @@ namespace hpx::experimental {
         }
         else
         {
-            auto result = hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
-                exec, [&](auto i) { f(r.iteration_value(i), ts...); }, cores, HPX_FORWARD(Ts, ts)...));
+            auto result =
+                hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
+                    exec, [&](auto i) { f(r.iteration_value(i), ts...); },
+                    cores, HPX_FORWARD(Ts, ts)...));
             r.exit_iteration(0);
             return result;
         }
