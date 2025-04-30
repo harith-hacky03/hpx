@@ -1,4 +1,4 @@
-//  Copyright (c) 2025 Hartmut Kaiser
+//  Copyright (c) 2023 Hartmut Kaiser
 //
 //  SPDX-License-Identifier: BSL-1.0
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -58,21 +58,21 @@ namespace hpx::experimental {
 
         // Initialize all reductions
         std::vector<std::reference_wrapper<Reductions>> all_reductions{
-            std::forward_as_tuple(std::move(reductions)...)};
+            std::forward_as_tuple(HPX_FORWARD(Reductions, reductions)...)};
         for (auto& r : all_reductions) {
             r.get().init_iteration(0, 0);
         }
 
         // Create a lambda that captures all reductions
-        auto task = [all_reductions = std::move(all_reductions), &f, &ts...](std::size_t index) {
+        auto task = [all_reductions = HPX_MOVE(all_reductions), &f, &ts...](std::size_t index) {
             // Create tuple of reductions using index sequence
             auto make_reduction_tuple = [&all_reductions]<std::size_t... Is>(std::index_sequence<Is...>) {
                 return std::tuple<Reductions...>{
-                    std::move(all_reductions[Is].get())...
+                    HPX_MOVE(all_reductions[Is].get())...
                 };
             };
             auto reduction_tuple = make_reduction_tuple(std::make_index_sequence<sizeof...(Reductions)>{});
-            f(index, reduction_tuple, std::forward<Ts>(ts)...);
+            f(index, HPX_MOVE(reduction_tuple), HPX_FORWARD(Ts, ts)...);
         };
 
         // Execute based on policy type
@@ -82,14 +82,14 @@ namespace hpx::experimental {
                 exec, task, cores, HPX_FORWARD(Ts, ts)...);
             
             // Create a cleanup function that will be called when all tasks complete
-            auto cleanup = [all_reductions = std::move(all_reductions)]() mutable {
+            auto cleanup = [all_reductions = HPX_MOVE(all_reductions)]() mutable {
                 for (auto& r : all_reductions) {
                     r.get().exit_iteration(0);
                 }
             };
             
             // Return a future that performs cleanup after all tasks complete
-            return fut.then([cleanup = std::move(cleanup)](auto&& fut_inner) mutable {
+            return fut.then([cleanup = HPX_MOVE(cleanup)](auto&& fut_inner) mutable {
                 cleanup();
                 return HPX_MOVE(fut_inner.get());
             });
