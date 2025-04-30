@@ -68,8 +68,9 @@ namespace hpx::experimental {
         auto task = [all_reductions = HPX_MOVE(all_reductions), &f, &ts...](
                         std::size_t index) {
             // Create tuple of reductions using index sequence
-            auto make_reduction_tuple = [&all_reductions]<std::size_t... Is>(
-                                            std::index_sequence<Is...>) {
+            auto make_reduction_tuple =
+                [&all_reductions]<std::size_t... Is>(std::index_sequence<Is...>)
+            {
                 return std::tuple<Reductions...>{
                     HPX_MOVE(all_reductions[Is].get())...};
             };
