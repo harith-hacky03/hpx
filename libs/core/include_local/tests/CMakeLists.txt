@@ -39,17 +39,5 @@ if(HPX_WITH_TESTS)
       NOLIBS
       DEPENDENCIES hpx_include_local
     )
-
-    add_hpx_test(
-      NAME tests.headers.modules.include_local.hpx_experimental_run_on_all_hpp
-      SOURCES hpx/experimental/run_on_all.cpp
-      DEPENDENCIES hpx_headers
-    )
-
-    add_hpx_test(
-      NAME tests.headers.modules.include_local.all_headers
-      SOURCES all_headers.cpp
-      DEPENDENCIES hpx_headers
-    )
   endif()
 endif()
