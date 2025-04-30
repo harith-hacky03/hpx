@@ -102,7 +102,6 @@ add_hpx_module(
     hpx_futures
     hpx_lcos_local
     hpx_memory
-    hpx_parallel_algorithms
     hpx_runtime_local
     hpx_synchronization
     hpx_threading
