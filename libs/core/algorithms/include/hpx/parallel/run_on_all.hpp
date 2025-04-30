@@ -17,13 +17,13 @@
 #include <hpx/config.hpp>
 #include <hpx/async_combinators/wait_all.hpp>
 #include <hpx/concepts/concepts.hpp>
+#include <hpx/execution.hpp>
 #include <hpx/execution/detail/execution_parameter_callbacks.hpp>
 #include <hpx/execution/execution.hpp>
 #include <hpx/execution_base/execution.hpp>
 #include <hpx/executors/parallel_executor.hpp>
 #include <hpx/functional/experimental/scope_exit.hpp>
 #include <hpx/parallel/algorithms/for_loop_reduction.hpp>
-#include <hpx/parallel/execution.hpp>
 #include <cstddef>
 #include <tuple>
 #include <type_traits>
@@ -57,8 +57,9 @@ namespace hpx::experimental {
             HPX_FORWARD(ExPolicy, policy), cores);
 
         // Initialize all reductions
-        std::vector<std::reference_wrapper<Reductions>> all_reductions{
-            std::forward_as_tuple(HPX_FORWARD(Reductions, reductions)...)};
+        std::vector<std::reference_wrapper<std::decay_t<Reductions>>>
+            all_reductions{
+                std::forward_as_tuple(HPX_FORWARD(Reductions, reductions)...)};
         for (auto& r : all_reductions)
         {
             r.get().init_iteration(0, 0);
@@ -68,11 +69,9 @@ namespace hpx::experimental {
         auto task = [all_reductions = HPX_MOVE(all_reductions), &f, &ts...](
                         std::size_t index) {
             // Create tuple of reductions using index sequence
-            auto make_reduction_tuple =
-                [&all_reductions]<std::size_t... Is>(std::index_sequence<Is...>)
-            {
-                return std::tuple<Reductions...>{
-                    HPX_MOVE(all_reductions[Is].get())...};
+            auto make_reduction_tuple = [&all_reductions](auto&& seq) {
+                return std::tuple<std::decay_t<Reductions>...>{
+                    HPX_MOVE(all_reductions[seq.index].get())...};
             };
             auto reduction_tuple = make_reduction_tuple(
                 std::make_index_sequence<sizeof...(Reductions)>{});
@@ -125,8 +124,8 @@ namespace hpx::experimental {
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename F, typename... Ts>
-    decltype(auto) run_on_all(ExPolicy&& policy, std::size_t num_tasks, F&& f,
-        [[maybe_unused]] Ts&&... ts)
+    decltype(auto) run_on_all([[maybe_unused]] ExPolicy&& policy,
+        std::size_t num_tasks, F&& f, [[maybe_unused]] Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
