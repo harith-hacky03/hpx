@@ -24,9 +24,10 @@
 #include <hpx/functional/experimental/scope_exit.hpp>
 #include <hpx/parallel/algorithms/for_loop_reduction.hpp>
 #include <hpx/parallel/execution.hpp>
-
 #include <cstddef>
 #include <type_traits>
+#include <vector>
+#include <tuple>
 
 namespace hpx::experimental {
 
@@ -37,51 +38,59 @@ namespace hpx::experimental {
     /// \tparam F The function type to execute
     /// \tparam Ts Additional argument types
     /// \param policy The execution policy to use
-    /// \param num_tasks The number of tasks to create
     /// \param r The reduction helper
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
-    // [REMOVED] Overload taking both execution policy and num_tasks for reduction. Use execution policy with embedded processing units count instead.
-    // template <typename ExPolicy, typename T, typename Op, typename F, typename... Ts>
-    // decltype(auto) run_on_all(ExPolicy&& policy, std::size_t num_tasks,
-    //     hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
-    // {
-    //     ...
-    // }
-
-    /// \brief Run a function on all available worker threads with reduction support
-    /// \tparam ExPolicy The execution policy type
-    /// \tparam T The reduction value type
-    /// \tparam Op The reduction operation type
-    /// \tparam F The function type to execute
-    /// \tparam Ts Additional argument types
-    /// \param policy The execution policy to use
-    /// \param r The reduction helper
-    /// \param f The function to execute
-    /// \param ts Additional arguments to pass to the function
-    // TODO: In the future, support multiple reduction arguments (see for_loop API).
-    template <typename ExPolicy, typename T, typename Op, typename F,
+    template <typename ExPolicy, typename... Reductions, typename F,
         typename... Ts>
-    decltype(auto) run_on_all(ExPolicy&& policy,
-        hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
+    decltype(auto) run_on_all(ExPolicy&& policy, Reductions&&... reductions, F&& f,
+        [[maybe_unused]] Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
 
         [[maybe_unused]] std::size_t cores =
             hpx::parallel::execution::detail::get_os_thread_count();
-        // Now use the execution policy with embedded processing units count
+        
+        // Create executor with proper configuration
         auto exec = hpx::execution::experimental::with_processing_units_count(
             HPX_FORWARD(ExPolicy, policy), cores);
-        r.init_iteration(0, 0);
-        // For async execution, cleanup must happen after all tasks complete.
+
+        // Initialize all reductions
+        std::vector<std::reference_wrapper<Reductions>> all_reductions{
+            std::forward_as_tuple(std::move(reductions)...)};
+        for (auto& r : all_reductions) {
+            r.get().init_iteration(0, 0);
+        }
+
+        // Create a lambda that captures all reductions
+        auto task = [all_reductions = std::move(all_reductions), &f, &ts...](std::size_t index) {
+            // Create tuple of reductions using index sequence
+            auto make_reduction_tuple = [&all_reductions]<std::size_t... Is>(std::index_sequence<Is...>) {
+                return std::tuple<Reductions...>{
+                    std::move(all_reductions[Is].get())...
+                };
+            };
+            auto reduction_tuple = make_reduction_tuple(std::make_index_sequence<sizeof...(Reductions)>{});
+            f(index, reduction_tuple, std::forward<Ts>(ts)...);
+        };
+
+        // Execute based on policy type
         if constexpr (hpx::is_async_execution_policy_v<ExPolicy>)
         {
             auto fut = hpx::parallel::execution::bulk_async_execute(
-                exec, [&](auto i) { f(r.iteration_value(i), ts...); }, cores,
-                HPX_FORWARD(Ts, ts)...);
-            return fut.then([&r](auto&& fut_inner) {
-                r.exit_iteration(0);
+                exec, task, cores, HPX_FORWARD(Ts, ts)...);
+            
+            // Create a cleanup function that will be called when all tasks complete
+            auto cleanup = [all_reductions = std::move(all_reductions)]() mutable {
+                for (auto& r : all_reductions) {
+                    r.get().exit_iteration(0);
+                }
+            };
+            
+            // Return a future that performs cleanup after all tasks complete
+            return fut.then([cleanup = std::move(cleanup)](auto&& fut_inner) mutable {
+                cleanup();
                 return HPX_MOVE(fut_inner.get());
             });
         }
@@ -89,9 +98,12 @@ namespace hpx::experimental {
         {
             auto result =
                 hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
-                    exec, [&](auto i) { f(r.iteration_value(i), ts...); },
-                    cores, HPX_FORWARD(Ts, ts)...));
-            r.exit_iteration(0);
+                    exec, task, cores, HPX_FORWARD(Ts, ts)...));
+            
+            // Clean up reductions
+            for (auto& r : all_reductions) {
+                r.get().exit_iteration(0);
+            }
             return result;
         }
     }
@@ -106,7 +118,7 @@ namespace hpx::experimental {
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename F, typename... Ts>
     decltype(auto) run_on_all(
-        ExPolicy&& policy, std::size_t num_tasks, F&& f, Ts&&... ts)
+        ExPolicy&& policy, std::size_t num_tasks, F&& f, [[maybe_unused]] Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
@@ -147,7 +159,7 @@ namespace hpx::experimental {
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename F, typename... Ts,
         HPX_CONCEPT_REQUIRES_(std::is_invocable_v<F&&, Ts&&...>)>
-    decltype(auto) run_on_all(ExPolicy&& policy, F&& f, Ts&&... ts)
+    decltype(auto) run_on_all(ExPolicy&& policy, F&& f, [[maybe_unused]] Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
