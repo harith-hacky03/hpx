@@ -7,16 +7,40 @@
 #pragma once
 
 #include <hpx/config.hpp>
-#include <hpx/async_combinators/wait_all.hpp>
+#include <hpx/assert.hpp>
+#include <hpx/async_base/launch_policy.hpp>
 #include <hpx/concepts/concepts.hpp>
-#include <hpx/execution/detail/execution_parameter_callbacks.hpp>
+#include <hpx/execution/algorithms/detail/predicates.hpp>
+#include <hpx/execution/executors/execution.hpp>
+#include <hpx/execution/executors/execution_parameters.hpp>
+#include <hpx/execution/executors/static_chunk_size.hpp>
 #include <hpx/execution_base/execution.hpp>
-#include <hpx/executors/parallel_executor.hpp>
-#include <hpx/functional/experimental/scope_exit.hpp>
-#include <hpx/parallel/algorithms/for_loop_reduction.hpp>
+#include <hpx/execution_base/traits/is_executor.hpp>
+#include <hpx/functional/detail/tag_fallback_invoke.hpp>
+#include <hpx/iterator_support/range.hpp>
+#include <hpx/iterator_support/traits/is_iterator.hpp>
+#include <hpx/parallel/algorithms/detail/advance_to_sentinel.hpp>
+#include <hpx/parallel/algorithms/detail/distance.hpp>
+#include <hpx/parallel/algorithms/detail/execution_parameters.hpp>
+#include <hpx/parallel/algorithms/detail/predicates.hpp>
+#include <hpx/parallel/util/detail/algorithm_result.hpp>
+#include <hpx/parallel/util/detail/chunk_size.hpp>
+#include <hpx/parallel/util/detail/handle_local_exceptions.hpp>
+#include <hpx/parallel/util/detail/sender_util.hpp>
+#include <hpx/parallel/util/loop.hpp>
+#include <hpx/parallel/util/partitioner.hpp>
+#include <hpx/parallel/util/result_types.hpp>
+#include <hpx/parallel/util/scan_partitioner.hpp>
+#include <hpx/parallel/util/transfer.hpp>
+#include <hpx/type_support/empty_function.hpp>
+#include <hpx/type_support/unused.hpp>
+
+#include <algorithm>
 #include <cstddef>
-#include <tuple>
+#include <functional>
+#include <iterator>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace hpx::experimental {
