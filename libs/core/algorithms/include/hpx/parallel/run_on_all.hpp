@@ -25,9 +25,9 @@
 #include <hpx/parallel/algorithms/for_loop_reduction.hpp>
 #include <hpx/parallel/execution.hpp>
 #include <cstddef>
+#include <tuple>
 #include <type_traits>
 #include <vector>
-#include <tuple>
 
 namespace hpx::experimental {
 
@@ -43,15 +43,15 @@ namespace hpx::experimental {
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename... Reductions, typename F,
         typename... Ts>
-    decltype(auto) run_on_all(ExPolicy&& policy, Reductions&&... reductions, F&& f,
-        [[maybe_unused]] Ts&&... ts)
+    decltype(auto) run_on_all(ExPolicy&& policy, Reductions&&... reductions,
+        F&& f, [[maybe_unused]] Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
 
         [[maybe_unused]] std::size_t cores =
             hpx::parallel::execution::detail::get_os_thread_count();
-        
+
         // Create executor with proper configuration
         auto exec = hpx::execution::experimental::with_processing_units_count(
             HPX_FORWARD(ExPolicy, policy), cores);
@@ -59,19 +59,22 @@ namespace hpx::experimental {
         // Initialize all reductions
         std::vector<std::reference_wrapper<Reductions>> all_reductions{
             std::forward_as_tuple(HPX_FORWARD(Reductions, reductions)...)};
-        for (auto& r : all_reductions) {
+        for (auto& r : all_reductions)
+        {
             r.get().init_iteration(0, 0);
         }
 
         // Create a lambda that captures all reductions
-        auto task = [all_reductions = HPX_MOVE(all_reductions), &f, &ts...](std::size_t index) {
+        auto task = [all_reductions = HPX_MOVE(all_reductions), &f, &ts...](
+                        std::size_t index) {
             // Create tuple of reductions using index sequence
-            auto make_reduction_tuple = [&all_reductions]<std::size_t... Is>(std::index_sequence<Is...>) {
+            auto make_reduction_tuple = [&all_reductions]<std::size_t... Is>(
+                                            std::index_sequence<Is...>) {
                 return std::tuple<Reductions...>{
-                    HPX_MOVE(all_reductions[Is].get())...
-                };
+                    HPX_MOVE(all_reductions[Is].get())...};
             };
-            auto reduction_tuple = make_reduction_tuple(std::make_index_sequence<sizeof...(Reductions)>{});
+            auto reduction_tuple = make_reduction_tuple(
+                std::make_index_sequence<sizeof...(Reductions)>{});
             f(index, HPX_MOVE(reduction_tuple), HPX_FORWARD(Ts, ts)...);
         };
 
@@ -80,28 +83,32 @@ namespace hpx::experimental {
         {
             auto fut = hpx::parallel::execution::bulk_async_execute(
                 exec, task, cores, HPX_FORWARD(Ts, ts)...);
-            
+
             // Create a cleanup function that will be called when all tasks complete
-            auto cleanup = [all_reductions = HPX_MOVE(all_reductions)]() mutable {
-                for (auto& r : all_reductions) {
+            auto cleanup = [all_reductions =
+                                   HPX_MOVE(all_reductions)]() mutable {
+                for (auto& r : all_reductions)
+                {
                     r.get().exit_iteration(0);
                 }
             };
-            
+
             // Return a future that performs cleanup after all tasks complete
-            return fut.then([cleanup = HPX_MOVE(cleanup)](auto&& fut_inner) mutable {
-                cleanup();
-                return HPX_MOVE(fut_inner.get());
-            });
+            return fut.then(
+                [cleanup = HPX_MOVE(cleanup)](auto&& fut_inner) mutable {
+                    cleanup();
+                    return HPX_MOVE(fut_inner.get());
+                });
         }
         else
         {
             auto result =
                 hpx::wait_all(hpx::parallel::execution::bulk_async_execute(
                     exec, task, cores, HPX_FORWARD(Ts, ts)...));
-            
+
             // Clean up reductions
-            for (auto& r : all_reductions) {
+            for (auto& r : all_reductions)
+            {
                 r.get().exit_iteration(0);
             }
             return result;
@@ -117,8 +124,8 @@ namespace hpx::experimental {
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename F, typename... Ts>
-    decltype(auto) run_on_all(
-        ExPolicy&& policy, std::size_t num_tasks, F&& f, [[maybe_unused]] Ts&&... ts)
+    decltype(auto) run_on_all(ExPolicy&& policy, std::size_t num_tasks, F&& f,
+        [[maybe_unused]] Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
@@ -159,7 +166,8 @@ namespace hpx::experimental {
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename F, typename... Ts,
         HPX_CONCEPT_REQUIRES_(std::is_invocable_v<F&&, Ts&&...>)>
-    decltype(auto) run_on_all(ExPolicy&& policy, F&& f, [[maybe_unused]] Ts&&... ts)
+    decltype(auto) run_on_all(
+        ExPolicy&& policy, F&& f, [[maybe_unused]] Ts&&... ts)
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
