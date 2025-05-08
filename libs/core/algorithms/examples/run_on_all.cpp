@@ -38,10 +38,10 @@ int main(int argc, char* argv[])
     hpx::experimental::run_on_all(
         hpx::execution::par,    // use parallel execution policy
         num_threads,    // use num_threads concurrent threads to execute the lambda
-        [&] {
+        [&](std::size_t index, std::tuple<> const& reductions) {
             std::lock_guard l(mtx);
-            std::cout << "Hello! I am thread " << hpx::get_worker_thread_num()
-                      << " of " << hpx::get_num_worker_threads() << "\n";
+            std::cout << "Hello! I am thread " << index << " of "
+                      << hpx::get_num_worker_threads() << "\n";
             std::cout << "My C++ std::thread id is "
                       << std::this_thread::get_id() << "\n";
         });
