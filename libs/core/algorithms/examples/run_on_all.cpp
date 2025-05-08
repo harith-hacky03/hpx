@@ -9,6 +9,7 @@
 #include <hpx/modules/runtime_local.hpp>
 #include <hpx/modules/synchronization.hpp>
 
+#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <mutex>
