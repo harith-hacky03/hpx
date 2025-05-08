@@ -45,12 +45,11 @@ namespace hpx::experimental {
 
     /// \brief Run a function on all available worker threads with reduction support
     /// \tparam ExPolicy The execution policy type
-    /// \tparam T The reduction value type
-    /// \tparam Op The reduction operation type
+    /// \tparam Reductions The reduction types
     /// \tparam F The function type to execute
     /// \tparam Ts Additional argument types
     /// \param policy The execution policy to use
-    /// \param r The reduction helper
+    /// \param reductions The reduction helpers
     /// \param f The function to execute
     /// \param ts Additional arguments to pass to the function
     template <typename ExPolicy, typename... Reductions, typename F,
@@ -69,25 +68,13 @@ namespace hpx::experimental {
             HPX_FORWARD(ExPolicy, policy), cores);
 
         // Initialize all reductions
-        std::vector<std::reference_wrapper<std::decay_t<Reductions>>>
-            all_reductions{
-                std::forward_as_tuple(HPX_FORWARD(Reductions, reductions)...)};
-        for (auto& r : all_reductions)
-        {
-            r.get().init_iteration(0, 0);
-        }
+        std::tuple<std::decay_t<Reductions>...> all_reductions(
+            HPX_FORWARD(Reductions, reductions)...);
 
         // Create a lambda that captures all reductions
         auto task = [all_reductions = HPX_MOVE(all_reductions), &f, &ts...](
                         std::size_t index) {
-            // Create tuple of reductions using index sequence
-            auto make_reduction_tuple = [&all_reductions](auto&& seq) {
-                return std::tuple<std::decay_t<Reductions>...>{
-                    HPX_MOVE(all_reductions[seq.index].get())...};
-            };
-            auto reduction_tuple = make_reduction_tuple(
-                std::make_index_sequence<sizeof...(Reductions)>{});
-            f(index, HPX_MOVE(reduction_tuple), HPX_FORWARD(Ts, ts)...);
+            f(index, all_reductions, HPX_FORWARD(Ts, ts)...);
         };
 
         // Execute based on policy type
@@ -99,10 +86,8 @@ namespace hpx::experimental {
             // Create a cleanup function that will be called when all tasks complete
             auto cleanup = [all_reductions =
                                    HPX_MOVE(all_reductions)]() mutable {
-                for (auto& r : all_reductions)
-                {
-                    r.get().exit_iteration(0);
-                }
+                std::apply([](auto&... r) { (r.exit_iteration(0), ...); },
+                    all_reductions);
             };
 
             // Return a future that performs cleanup after all tasks complete
@@ -119,10 +104,8 @@ namespace hpx::experimental {
                     exec, task, cores, HPX_FORWARD(Ts, ts)...));
 
             // Clean up reductions
-            for (auto& r : all_reductions)
-            {
-                r.get().exit_iteration(0);
-            }
+            std::apply([](auto&... r) { (r.exit_iteration(0), ...); },
+                all_reductions);
             return result;
         }
     }
@@ -191,22 +174,6 @@ namespace hpx::experimental {
     }
 
     // Overloads without execution policy (default to sequential execution)
-    template <typename T, typename Op, typename F, typename... Ts>
-    decltype(auto) run_on_all(std::size_t num_tasks,
-        hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
-    {
-        return run_on_all(hpx::execution::seq, num_tasks, HPX_MOVE(r),
-            HPX_FORWARD(F, f), HPX_FORWARD(Ts, ts)...);
-    }
-
-    template <typename T, typename Op, typename F, typename... Ts>
-    decltype(auto) run_on_all(
-        hpx::parallel::detail::reduction_helper<T, Op>&& r, F&& f, Ts&&... ts)
-    {
-        return run_on_all(hpx::execution::seq, HPX_MOVE(r), HPX_FORWARD(F, f),
-            HPX_FORWARD(Ts, ts)...);
-    }
-
     template <typename F, typename... Ts>
     decltype(auto) run_on_all(std::size_t num_tasks, F&& f, Ts&&... ts)
     {
