@@ -59,13 +59,20 @@ namespace hpx::parallel {
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
+        static_assert(std::is_invocable_v<F&&, std::size_t,
+                          std::tuple<std::decay_t<Reductions>...>, Ts&&...>,
+            "F must be callable with (std::size_t, std::tuple<Reductions...>, "
+            "Ts...)");
 
         [[maybe_unused]] std::size_t cores =
             hpx::parallel::execution::detail::get_os_thread_count();
 
         // Create executor with proper configuration
         auto exec = hpx::execution::experimental::with_processing_units_count(
-            HPX_FORWARD(ExPolicy, policy), cores);
+            hpx::execution::parallel_executor(
+                hpx::threads::thread_priority::bound,
+                hpx::threads::thread_stacksize::default_),
+            cores);
 
         // Initialize all reductions
         std::tuple<std::decay_t<Reductions>...> all_reductions(
@@ -104,8 +111,8 @@ namespace hpx::parallel {
                     exec, task, cores, HPX_FORWARD(Ts, ts)...));
 
             // Clean up reductions
-            std::apply([](auto&... r) { (r.exit_iteration(0), ...); },
-                all_reductions);
+            std::apply(
+                [](auto&... r) { (r.exit_iteration(0), ...); }, all_reductions);
             return result;
         }
     }
@@ -124,6 +131,8 @@ namespace hpx::parallel {
     {
         static_assert(hpx::is_execution_policy_v<ExPolicy>,
             "hpx::is_execution_policy_v<ExPolicy>");
+        static_assert(std::is_invocable_v<F&&, Ts&&...>,
+            "F must be callable with (Ts...)");
 
         // Configure executor with proper scheduling hints
         hpx::threads::thread_schedule_hint hint;
